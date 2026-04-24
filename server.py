@@ -176,4 +176,4 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         stop_threads = True
         t1.join()
-#coded By Machine1337....If u like the tool...Follow me on github: @machine1337
+#coded By Machine1337, forked by Neos Helios....If u like the tool...Follow me on github: @machine1337, @ARCH66H
