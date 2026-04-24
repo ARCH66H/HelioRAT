@@ -17,7 +17,7 @@ CROSS PLATFORM MULTI CLIENTS RAT
     2. Now Compile client.py to exe (make sure change ip and port in it)
     
 # Features:
-    1. Simple And CROSS PLATFORM RAT
+    1. The original fork was multiplatform, this is not.
     2. Multi Client Handling
     3. Persistent  Shell
     3. auto-reconnect
@@ -28,8 +28,6 @@ CROSS PLATFORM MULTI CLIENTS RAT
 
 # PLATFORM TESTED:
     1. Windows
-    2. Linux
-
      
 # Warning:
     Use this tool Only for Educational Purpose And I will Not be Responsible For any malicious use or modifications.
