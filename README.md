@@ -1,6 +1,6 @@
 # HelioRAT, EDUCATIONAL PURPOSES ONLY, DO. NOT. RUN.
 
-CROSS PLATFORM MULTI CLIENTS FUD RAT
+CROSS PLATFORM MULTI CLIENTS RAT
 
 # Note:
     This Project is under active development. May contains some bugs
@@ -17,7 +17,7 @@ CROSS PLATFORM MULTI CLIENTS FUD RAT
     2. Now Compile client.py to exe (make sure change ip and port in it)
     
 # Features:
-    1. Simple And FUD CROSS PLATFORM RAT
+    1. Simple And CROSS PLATFORM RAT
     2. Multi Client Handling
     3. Persistent  Shell
     3. auto-reconnect
