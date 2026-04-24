@@ -32,8 +32,12 @@ def download_file(file_name):
     f.close()
 
 def upload_file(file_name):
-    f = open(file_name, 'rb')
-    sock.send(f.read())
+    with open(file_name, 'rb') as f:
+        while True:
+            chunk = f.read(4096) # Read in 4KB blocks
+            if not chunk:
+                break
+            sock.send(chunk)
 def get_hostname():
     hostname = socket.gethostname()
     return hostname
