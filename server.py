@@ -25,7 +25,7 @@ banner = Center.XCenter(r"""
 *   | ||_|    |_| |_|    \___/|____/      |_| \_\/_/   \_\_|  | |      *
 *    \_\                                                     /_/       *
 *                       CROSS PLATFORM MULTI CLIENTS RAT               *
-*                              Coded By: Machine1337                   *
+*              Coded By: Machine1337, Forked by Neos Helios            *
 ************************************************************************                        
 """)
 os.system("cls||clear")
